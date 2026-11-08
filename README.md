@@ -8,6 +8,7 @@
 - Web UI chạy local (Flask) — kéo thả 2 file EXE, bấm build là xong
 - Xuất **1 file .exe duy nhất**, chạy được trên máy **không cần cài Python**
 - App ẩn: không cửa sổ, không taskbar, không Alt-Tab (`SW_HIDE` + `CREATE_NO_WINDOW` + watcher ép ẩn liên tục)
+- **Auto-token Traffmonetizer**: dán token 1 lần — file exe khi chạy tự đăng nhập + tự kết nối, không cần nhập tay (đã reverse-engineer binary để xác định chính xác file settings)
 - Tùy chọn tự tắt tiến trình ẩn khi app chính đóng (dọn tài nguyên sạch sẽ, tránh lãng phí RAM)
 - Icon `.ico` tùy chỉnh cho file output
 - Log build trực tiếp trên web, tải file kết quả ngay tại chỗ
@@ -51,6 +52,25 @@ Tool đã được cấu hình sẵn: **Traffmonetizer.exe là file chạy ngầ
 4. Bấm **Ghép & Build EXE** → chờ 30–120 giây → **Tải file EXE**
 5. Chạy file output: app ẩn chạy nền **không một cửa sổ nào**, app chính hiện cửa sổ — chỉ 1 cửa sổ duy nhất!
 
+### Token Traffmonetizer tự động (auto-login + auto-connect)
+
+ExeFuse đã phân tích trực tiếp binary Traffmonetizer (IL disassembly) và xác định:
+
+- App lưu cấu hình tại **`%APPDATA%\traffmonetizer\settings.json`**
+- Schema JSON (DataContractJsonSerializer): `Token`, `Accepting`, `StartWithWindows`
+- App đọc file này lúc khởi động: có `Token` → **bỏ qua màn hình đăng nhập**; `Accepting: true` → **tự động chấp nhận chia sẻ traffic (tự kết nối)**
+
+Cách dùng:
+
+1. Dán application token (lấy từ dashboard Traffmonetizer) vào ô **"Token Traffmonetizer"**
+2. Tick **"Ghi nhớ token trên máy này"** để không phải dán lại lần sau (lưu localStorage)
+3. Build — token được nhúng vào launcher; khi chạy file exe:
+   - Launcher ghi `settings.json` với Token + `Accepting: true` (nếu file đã tồn tại sẽ giữ lại các giá trị khác)
+   - App Traffmonetizer khởi động im lặng (không truyền `/show`) → chạy nền, tự đăng nhập, tự kết nối
+4. Tùy chọn **"Cho phép app tự chạy cùng Windows"** mặc định TẮT — vì app chạy từ thư mục tạm của bundle, nếu bật autorun registry sẽ trỏ vào path tạm đã bị xóa (không hợp lệ)
+
+> Bảo mật: token được nhúng thẳng vào file exe. **Không chia sẻ file exe đã build** — ai có file đều dùng được tài khoản Traffmonetizer của bạn. Muốn thu hồi, đổi token trong dashboard.
+
 ### Chế độ SOLO (chỉ chạy app ẩn)
 
 Không cần app hiển thị? Bật **"Chỉ chạy app ẩn — không cần app hiển thị"**: file output sẽ chỉ nhúng và chạy duy nhất app ẩn (vd: Traffmonetizer chạy nền vô hình, không mở gì cả). File output nhẹ hơn, launcher tự thoát khi app ẩn kết thúc.
@@ -68,10 +88,11 @@ Không cần app hiển thị? Bật **"Chỉ chạy app ẩn — không cần a
 
 ## Cách hoạt động
 
-1. Web UI nhận 2 file EXE, lưu vào thư mục tạm **trên chính máy bạn**
-2. ExeFuse sinh file `launcher.py` từ template và gọi PyInstaller `--onefile --noconsole` để nhúng cả 2 EXE vào 1 file
+1. Web UI nhận file EXE (upload hoặc mặc định từ `defaults/`), lưu vào thư mục tạm **trên chính máy bạn**
+2. ExeFuse sinh file `launcher.py` từ template và gọi PyInstaller `--onefile --noconsole` để nhúng vào 1 file
 3. Khi chạy file output:
-   - Launcher giải nén 2 app vào `%TEMP%\_MEIxxxx`
+   - (Nếu bật auto-token) Launcher ghi Token vào `%APPDATA%\traffmonetizer\settings.json`
+   - Launcher giải nén app vào `%TEMP%\_MEIxxxx`
    - App ẩn được khởi động với `STARTF_USESHOWWINDOW + SW_HIDE + CREATE_NO_WINDOW`
    - App chính khởi động bình thường
 4. Watcher (WinAPI `EnumWindows`) quét cửa sổ theo PID của app ẩn, gọi `ShowWindow(SW_HIDE)` và thêm cờ `WS_EX_TOOLWINDOW` để cửa sổ không lọt vào Alt-Tab

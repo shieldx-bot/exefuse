@@ -77,6 +77,21 @@ main{flex:1;width:100%;max-width:960px;margin:0 auto;padding:28px 20px 44px}
 .check input{width:16px;height:16px;accent-color:var(--accent);flex:none}
 .iconrow{margin-top:14px;font-size:13px;color:var(--muted)}
 .iconrow input{color:var(--text);font-size:13px;margin-left:6px;max-width:280px}
+.tokenbox{
+  margin-top:16px;border:1px solid var(--border2);border-radius:11px;
+  background:var(--panel2);padding:14px 16px;
+}
+.tokenbox .tokenhead{font-size:13.5px;font-weight:600;color:var(--accent2);margin-bottom:10px}
+.tokenrow input{
+  width:100%;background:#070a0e;border:1px solid var(--border2);color:var(--text);
+  border-radius:9px;padding:11px 13px;font-size:14px;outline:none;
+  font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;
+}
+.tokenrow input:focus{border-color:var(--accent)}
+.tokenopts{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:10px}
+.tokennote{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6}
+.tokennote code{background:#0a0f15;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:11.5px;color:#9fe8c8}
+.tokennote b{color:#fbbf24}
 button.primary{
   margin-top:18px;width:100%;padding:14px 16px;border:0;border-radius:11px;cursor:pointer;
   background:linear-gradient(135deg,#10b981,#0d9488);color:#04110c;font-weight:700;font-size:15px;
@@ -166,6 +181,22 @@ footer{
       <label class="check"><input type="checkbox" name="solo_mode" id="soloCb" value="1" /> Chỉ chạy app ẩn — không cần app hiển thị</label>
     </div>
 
+    <div class="tokenbox" id="tokenBox">
+      <div class="tokenhead">Token Traffmonetizer — tự động đăng nhập &amp; kết nối</div>
+      <div class="tokenrow">
+        <input type="text" id="tmToken" name="hidden_token" placeholder="Dán application token (vd: NxLHoObcAL...)" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="tokenopts">
+        <label class="check"><input type="checkbox" id="rememberToken" checked /> Ghi nhớ token trên máy này</label>
+        <label class="check"><input type="checkbox" name="tm_autorun" id="tmAutorun" value="1" /> Cho phép app tự chạy cùng Windows (StartWithWindows)</label>
+      </div>
+      <div class="tokennote">
+        File exe khi chạy sẽ tự ghi Token vào <code>%APPDATA%\traffmonetizer\settings.json</code> —
+        app tự đăng nhập, tự kết nối, không cần nhập tay. Token được nhúng trong file exe —
+        <b>không chia sẻ file exe đã build cho ai</b>.
+      </div>
+    </div>
+
     <div class="iconrow">
       Icon tùy chỉnh (.ico — bỏ trống nếu không cần):
       <input type="file" name="icon_file" accept=".ico" />
@@ -213,6 +244,7 @@ const form = $('#buildForm'), buildBtn = $('#buildBtn'), formErr = $('#formErr')
 const resultCard = $('#resultCard'), statusBadge = $('#statusBadge'), statusHint = $('#statusHint');
 const logEl = $('#log'), downloadBtn = $('#downloadBtn');
 const soloCb = $('#soloCb'), killCb = $('#killCb'), defBadge = $('#defBadge');
+const tmToken = $('#tmToken'), rememberToken = $('#rememberToken'), tmAutorun = $('#tmAutorun');
 const cardHidden = document.querySelector('[data-drop="hidden"]');
 const cardVisible = document.querySelector('[data-drop="visible"]');
 const hiddenInput = cardHidden.querySelector('input[type=file]');
@@ -331,6 +363,12 @@ function startPolling(jobId) {
   }, 800);
 }
 
+// Token: nap tu localStorage (neu da ghi nho)
+try {
+  const saved = localStorage.getItem('exefuse_tm_token');
+  if (saved) tmToken.value = saved;
+} catch (e) {}
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   formErr.hidden = true;
@@ -351,6 +389,15 @@ form.addEventListener('submit', async (e) => {
   if (!hiddenInput.files.length && defaultHidden) {
     fd.append('use_default_hidden', '1');
   }
+
+  // Luu / xoa token trong localStorage tuy checkbox "ghi nho"
+  try {
+    if (rememberToken.checked && tmToken.value.trim()) {
+      localStorage.setItem('exefuse_tm_token', tmToken.value.trim());
+    } else {
+      localStorage.removeItem('exefuse_tm_token');
+    }
+  } catch (e) {}
 
   buildBtn.disabled = true;
   buildBtn.textContent = 'Đang upload & khởi tạo build...';
