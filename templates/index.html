@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ExeFuse — Gộp 2 file EXE thành 1</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2310b981'/%3E%3Ctext x='16' y='22' font-size='14' font-weight='bold' text-anchor='middle' fill='%2304110c'%3EEF%3C/text%3E%3C/svg%3E" />
+<style>
+:root{
+  --bg:#0b0f14; --panel:#111823; --panel2:#0e141d; --border:#1f2b3a; --border2:#2a3a50;
+  --text:#e6edf3; --muted:#8b98a9; --accent:#10b981; --accent2:#34d399; --danger:#f87171;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  min-height:100vh;display:flex;flex-direction:column;
+  background:radial-gradient(1100px 480px at 50% -120px,#12202c 0%,var(--bg) 60%);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+header{
+  display:flex;align-items:center;gap:10px;padding:14px 20px;
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;
+  background:rgba(11,15,20,.85);backdrop-filter:blur(8px);
+}
+.logo{
+  width:28px;height:28px;border-radius:8px;flex:none;
+  background:linear-gradient(135deg,var(--accent),#0d9488);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:12px;color:#04110c;
+}
+header b{font-size:16px}
+header .tag{font-size:12px;color:var(--muted);border:1px solid var(--border2);padding:2px 9px;border-radius:99px}
+main{flex:1;width:100%;max-width:960px;margin:0 auto;padding:28px 20px 44px}
+.hero h1{margin:0 0 8px;font-size:26px;line-height:1.3}
+.hero p{margin:0;color:var(--muted);line-height:1.65;font-size:14.5px}
+.env{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}
+.chip{font-size:12.5px;padding:5px 11px;border-radius:99px;border:1px solid var(--border2);color:var(--muted);background:var(--panel2)}
+.chip.ok{color:#a7f3d0;border-color:#134e3a;background:#0a1f18}
+.chip.bad{color:#fecaca;border-color:#5b2323;background:#220f0f}
+.warnbar{
+  background:#2a1d06;border:1px solid #4d3c10;color:#fde68a;border-radius:10px;
+  padding:10px 14px;font-size:13px;margin-bottom:16px;line-height:1.6;
+}
+.warnbar code{background:#1a1204;border-radius:5px;padding:1px 6px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:720px){.grid2{grid-template-columns:1fr}}
+.fcard{
+  border:1.5px dashed var(--border2);border-radius:12px;background:var(--panel2);
+  padding:18px 14px;cursor:pointer;transition:.15s;text-align:center;min-height:150px;
+}
+.fcard:hover{border-color:var(--accent)}
+.fcard.drag{border-color:var(--accent);background:#0c1f19}
+.fcard .ic{width:30px;height:30px;margin:0 auto 8px;color:var(--muted)}
+.fcard:hover .ic{color:var(--accent2)}
+.fcard h3{margin:0 0 4px;font-size:14px}
+.badge-hidden{color:#fbbf24}
+.badge-visible{color:#34d399}
+.fcard .sub{color:var(--muted);font-size:12.5px;margin-bottom:12px;line-height:1.5}
+.fcard .fname{font-size:13px;color:var(--accent2);word-break:break-all;min-height:18px}
+.fcard input[type=file]{display:none}
+.row{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;margin-top:18px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12.5px;color:var(--muted)}
+.field input[type=text]{
+  background:var(--panel2);border:1px solid var(--border2);color:var(--text);
+  border-radius:9px;padding:10px 12px;font-size:14px;min-width:210px;outline:none;
+}
+.field input[type=text]:focus{border-color:var(--accent)}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;user-select:none;padding-bottom:8px}
+.check input{width:16px;height:16px;accent-color:var(--accent);flex:none}
+.iconrow{margin-top:14px;font-size:13px;color:var(--muted)}
+.iconrow input{color:var(--text);font-size:13px;margin-left:6px;max-width:280px}
+button.primary{
+  margin-top:18px;width:100%;padding:14px 16px;border:0;border-radius:11px;cursor:pointer;
+  background:linear-gradient(135deg,#10b981,#0d9488);color:#04110c;font-weight:700;font-size:15px;
+  transition:.15s;
+}
+button.primary:hover{filter:brightness(1.1)}
+button.primary:disabled{opacity:.55;cursor:not-allowed}
+.statusbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.badge{font-size:12.5px;padding:4px 12px;border-radius:99px;border:1px solid var(--border2);color:var(--muted)}
+.badge.queued{color:#fde68a;border-color:#4d3c10;background:#201806}
+.badge.building{color:#a5f3fc;border-color:#155e6b;background:#07191d}
+.badge.done{color:#a7f3d0;border-color:#134e3a;background:#0a1f18}
+.badge.failed{color:#fecaca;border-color:#5b2323;background:#220f0f}
+.statusbar .hint{font-size:12.5px;color:var(--muted)}
+.log{
+  background:#070a0e;border:1px solid var(--border);border-radius:10px;padding:14px;
+  font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+  font-size:12px;line-height:1.55;color:#9fe8c8;max-height:340px;overflow-y:auto;
+  white-space:pre-wrap;word-break:break-all;
+}
+.log::-webkit-scrollbar{width:10px}
+.log::-webkit-scrollbar-thumb{background:#1f2b3a;border-radius:6px}
+.dl{
+  display:inline-block;margin-top:14px;padding:12px 24px;border-radius:10px;
+  text-decoration:none;font-weight:700;font-size:14px;
+  background:linear-gradient(135deg,#10b981,#0d9488);color:#04110c;
+}
+.err{color:#fecaca;font-size:13.5px;margin-top:12px;line-height:1.6}
+.how{color:var(--muted);font-size:13.5px;line-height:1.75}
+.how h2{color:var(--text);font-size:16px;margin:4px 0 8px}
+.how h2:not(:first-child){margin-top:18px}
+.how ol,.how ul{padding-left:20px;margin:6px 0}
+.how li{margin:4px 0}
+.how code{background:#0a0f15;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:12px;color:#9fe8c8}
+footer{
+  border-top:1px solid var(--border);padding:14px 20px;text-align:center;
+  color:var(--muted);font-size:12.5px;margin-top:auto;
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">EF</span>
+  <b>ExeFuse</b>
+  <span class="tag">gộp 2 EXE · 1 chạy ẩn + 1 hiện giao diện</span>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Gộp 2 file EXE thành 1 file duy nhất</h1>
+    <p>
+      Kết quả là <b>1 file .exe</b>: khi chạy, một ứng dụng chạy <b>ngầm không cửa sổ</b>,
+      ứng dụng kia mở <b>giao diện bình thường</b> — chỉ một cửa sổ duy nhất xuất hiện,
+      không còn cảnh 2 app cùng bật lên gây khó chịu.
+    </p>
+  </div>
+
+  <div class="env" id="envChips"></div>
+  <div class="warnbar" id="warnbar" hidden></div>
+
+  <form id="buildForm" class="card">
+    <div class="grid2">
+      <div class="fcard" data-drop="hidden">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+        <h3 class="badge-hidden">1 · File chạy NGẦM (bị ẩn)</h3>
+        <div class="sub">Ứng dụng này chạy nền, không hiện cửa sổ, không chiếm taskbar</div>
+        <div class="fname" data-name>Chưa chọn file — bấm hoặc kéo thả .exe vào đây</div>
+        <input type="file" name="hidden_file" accept=".exe" required />
+      </div>
+      <div class="fcard" data-drop="visible">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/></svg>
+        <h3 class="badge-visible">2 · File HIỆN GIAO DIỆN</h3>
+        <div class="sub">Ứng dụng chính — cửa sổ sẽ hiện lên bình thường</div>
+        <div class="fname" data-name>Chưa chọn file — bấm hoặc kéo thả .exe vào đây</div>
+        <input type="file" name="visible_file" accept=".exe" required />
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="outname">Tên file output</label>
+        <input type="text" id="outname" name="output_name" placeholder="ExeFuse_App" />
+      </div>
+      <label class="check"><input type="checkbox" name="kill_hidden" value="1" checked /> Tắt tiến trình ẩn khi app chính đóng</label>
+      <label class="check"><input type="checkbox" name="hide_watch" value="1" checked /> Ép ẩn cửa sổ liên tục (phòng app tự mở lại)</label>
+    </div>
+
+    <div class="iconrow">
+      Icon tùy chỉnh (.ico — bỏ trống nếu không cần):
+      <input type="file" name="icon_file" accept=".ico" />
+    </div>
+
+    <button class="primary" id="buildBtn" type="submit">Ghép &amp; Build EXE</button>
+    <div class="err" id="formErr" hidden></div>
+  </form>
+
+  <section class="card" id="resultCard" hidden>
+    <div class="statusbar">
+      <span class="badge" id="statusBadge">—</span>
+      <span class="hint" id="statusHint"></span>
+    </div>
+    <div class="log" id="log"></div>
+    <a class="dl" id="downloadBtn" href="#" hidden>Tải file EXE kết quả</a>
+  </section>
+
+  <section class="card how">
+    <h2>Cách hoạt động</h2>
+    <p>ExeFuse dùng <b>PyInstaller (onefile)</b> nhúng cả 2 file EXE vào 1 launcher duy nhất. Khi chạy file output:</p>
+    <ul>
+      <li>Launcher tự giải nén 2 app vào thư mục tạm (<code>%TEMP%\_MEIxxxx</code>).</li>
+      <li>App "ẩn" được khởi động với cờ <code>SW_HIDE</code> + <code>CREATE_NO_WINDOW</code>, và một watcher dùng WinAPI liên tục ép ẩn mọi cửa sổ nó tạo ra.</li>
+      <li>App "hiện" khởi động bình thường — chỉ duy nhất cửa sổ của nó xuất hiện.</li>
+      <li>Khi app chính đóng, tiến trình ẩn được dọn sạch (<code>taskkill /T /F</code>) nếu bạn bật tùy chọn tương ứng.</li>
+    </ul>
+    <h2>Lưu ý quan trọng</h2>
+    <ul>
+      <li>Chỉ build được file <code>.exe</code> cho Windows khi chạy ExeFuse trên Windows (PyInstaller không cross-compile).</li>
+      <li>Vẫn có <b>2 tiến trình</b> trong Task Manager — công cụ này gộp cách khởi động và ẩn cửa sổ, không gộp code của 2 app.</li>
+      <li>Antivirus/SmartScreen có thể cảnh báo nhầm file PyInstaller onefile — nếu bạn tin nguồn gốc 2 app thì chỉ cần add exclusion.</li>
+      <li>File output nặng khoảng bằng tổng 2 file + ~2 MB; lần chạy đầu hơi chậm do giải nén.</li>
+      <li>Đừng gộp app ẩn nếu nó cần bạn tương tác (nhập mật khẩu, bấm OK...) — cửa sổ bị ẩn thì bạn không bấm được.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>ExeFuse · Chạy 100% trên máy bạn — file EXE không bị gửi đi đâu cả · MIT License</footer>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const envChips = $('#envChips'), warnbar = $('#warnbar');
+const form = $('#buildForm'), buildBtn = $('#buildBtn'), formErr = $('#formErr');
+const resultCard = $('#resultCard'), statusBadge = $('#statusBadge'), statusHint = $('#statusHint');
+const logEl = $('#log'), downloadBtn = $('#downloadBtn');
+
+const STATUS_TEXT = {
+  queued:   ['ĐANG CHỜ', 'Đang chờ vào hàng build...'],
+  building: ['ĐANG BUILD', 'PyInstaller đang đóng gói — có thể mất 30–120 giây...'],
+  done:     ['HOÀN TẤT', 'Build thành công! Bấm nút bên dưới để tải file.'],
+  failed:   ['THẤT BẠI', 'Build lỗi — xem log bên dưới để biết chi tiết.'],
+};
+
+function addChip(text, cls) {
+  const s = document.createElement('span');
+  s.className = 'chip ' + (cls || '');
+  s.textContent = text;
+  envChips.appendChild(s);
+}
+
+fetch('/api/env').then(r => r.json()).then(env => {
+  addChip('Python ' + env.python, 'ok');
+  if (env.pyinstaller) {
+    addChip('PyInstaller ' + env.pyinstaller, 'ok');
+    addChip('Sẵn sàng build', 'ok');
+  } else {
+    addChip('PyInstaller: CHƯA CÀI', 'bad');
+    warnbar.hidden = false;
+    warnbar.innerHTML = 'Cảnh báo: chưa cài <b>PyInstaller</b> — chưa thể build. Mở terminal và chạy <code>pip install pyinstaller</code> rồi tải lại trang.';
+  }
+}).catch(() => {});
+
+document.querySelectorAll('.fcard').forEach(card => {
+  const input = card.querySelector('input[type=file]');
+  const nameEl = card.querySelector('[data-name]');
+  const setName = () => {
+    nameEl.textContent = input.files.length ? 'Đã chọn: ' + input.files[0].name : 'Chưa chọn file — bấm hoặc kéo thả .exe vào đây';
+  };
+  card.addEventListener('click', (e) => { if (e.target !== input) input.click(); });
+  card.addEventListener('dragover', (e) => { e.preventDefault(); card.classList.add('drag'); });
+  card.addEventListener('dragleave', () => card.classList.remove('drag'));
+  card.addEventListener('drop', (e) => {
+    e.preventDefault(); card.classList.remove('drag');
+    if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; setName(); }
+  });
+  input.addEventListener('change', setName);
+});
+
+let pollTimer = null;
+
+function startPolling(jobId) {
+  resultCard.hidden = false;
+  downloadBtn.hidden = true;
+  logEl.textContent = '';
+  statusBadge.textContent = 'ĐANG CHỜ';
+  statusBadge.className = 'badge queued';
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const res = await fetch('/api/status/' + jobId);
+      if (!res.ok) return;
+      const job = await res.json();
+      const meta = STATUS_TEXT[job.status] || [job.status.toUpperCase(), ''];
+      statusBadge.textContent = meta[0];
+      statusBadge.className = 'badge ' + job.status;
+      statusHint.textContent = meta[1];
+      if (job.log && job.log.length) {
+        logEl.textContent = job.log.join('\n');
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      if (job.status === 'done') {
+        clearInterval(pollTimer);
+        downloadBtn.href = '/api/download/' + jobId;
+        downloadBtn.textContent = 'Tải file: ' + (job.output_name || 'ExeFuse_App');
+        downloadBtn.hidden = false;
+      }
+      if (job.status === 'failed') clearInterval(pollTimer);
+    } catch (e) { /* bo qua loi polling don le */ }
+  }, 800);
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  formErr.hidden = true;
+  const fd = new FormData(form);
+  buildBtn.disabled = true;
+  buildBtn.textContent = 'Đang upload & khởi tạo build...';
+  try {
+    const res = await fetch('/api/build', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
+    buildBtn.textContent = 'Đang build — xem tiến trình bên dưới';
+    startPolling(data.job_id);
+  } catch (err) {
+    formErr.hidden = false;
+    formErr.textContent = 'Lỗi: ' + err.message;
+    buildBtn.disabled = false;
+    buildBtn.textContent = 'Ghép & Build EXE';
+    return;
+  }
+  // cho build xong (polling tu tat) roi mo lai nut
+  const waitDone = setInterval(() => {
+    const badge = statusBadge.textContent;
+    if (badge === 'HOÀN TẤT' || badge === 'THẤT BẠI') {
+      clearInterval(waitDone);
+      buildBtn.disabled = false;
+      buildBtn.textContent = 'Ghép & Build EXE';
+    }
+  }, 1000);
+});
+</script>
+</body>
+</html>
