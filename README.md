@@ -33,11 +33,27 @@ python app.py
 
 ## Cách dùng
 
-1. Ô trái: chọn file EXE sẽ **chạy ngầm (bị ẩn)**
-2. Ô phải: chọn file EXE **hiển thị giao diện** (app chính)
+### Bước 0 — Đặt app ẩn mặc định (Traffmonetizer.exe)
+
+Tool đã được cấu hình sẵn: **Traffmonetizer.exe là file chạy ngầm mặc định** (chạy hoàn toàn không có cửa sổ).
+
+- Copy `Traffmonetizer.exe` vào thư mục `defaults/` trong repo (bên cạnh `app.py`), hoặc
+- Đặt `Traffmonetizer.exe` cạnh `run.bat` rồi chạy **`setup_default.bat`** một lần
+- Web UI sẽ tự nhận: thấy dòng xanh **"App ẩn mặc định: Traffmonetizer.exe (3.0 MB)"** là OK
+- Lần build sau **không cần chọn lại file ẩn** nữa — chỉ cần chọn app hiển thị (nếu có)
+- Muốn dùng app ẩn khác? Chọn/kéo thả file .exe vào ô 1 là tự động thay thế
+
+### Bước 1 — Build
+
+1. Ô trái: file EXE sẽ **chạy ngầm (bị ẩn)** — mặc định tự dùng `defaults/Traffmonetizer.exe`
+2. Ô phải: file EXE **hiển thị giao diện** (app chính) — hoặc bật **"Chỉ chạy app ẩn"** nếu không cần app hiển thị
 3. Đặt tên file output (tùy chọn) + icon .ico (tùy chọn)
 4. Bấm **Ghép & Build EXE** → chờ 30–120 giây → **Tải file EXE**
-5. Chạy file output: app ẩn chạy nền, app chính hiện cửa sổ — chỉ 1 cửa sổ duy nhất!
+5. Chạy file output: app ẩn chạy nền **không một cửa sổ nào**, app chính hiện cửa sổ — chỉ 1 cửa sổ duy nhất!
+
+### Chế độ SOLO (chỉ chạy app ẩn)
+
+Không cần app hiển thị? Bật **"Chỉ chạy app ẩn — không cần app hiển thị"**: file output sẽ chỉ nhúng và chạy duy nhất app ẩn (vd: Traffmonetizer chạy nền vô hình, không mở gì cả). File output nhẹ hơn, launcher tự thoát khi app ẩn kết thúc.
 
 ### Tùy chọn build
 
@@ -45,7 +61,10 @@ python app.py
 |---|---|
 | Tắt tiến trình ẩn khi app chính đóng | Khi bạn thoát app chính, tiến trình ẩn bị `taskkill /T /F` — không để process "ma" ngốn RAM |
 | Ép ẩn cửa sổ liên tục | Nếu app ẩn "cố tình" mở lại cửa sổ, watcher sẽ ẩn lại ngay (quét mỗi 0.4 giây) |
+| Chỉ chạy app ẩn | Chế độ SOLO: file output chỉ chạy app ẩn, không cần app hiển thị |
 | Icon | Gắn icon .ico vào file output |
+
+> Lưu ý với Traffmonetizer: cửa sổ chính sẽ bị ẩn hoàn toàn, nhưng **icon khay hệ thống (system tray)** của nó vẫn có thể xuất hiện — đây là giới hạn của Windows, icon tray không thuộc cửa sổ nào để ẩn.
 
 ## Cách hoạt động
 
@@ -77,10 +96,15 @@ exefuse/
 │   └── launcher_template.py    # Launcher runtime: chạy 1 app ẩn + 1 app hiện
 ├── templates/
 │   └── index.html              # Web UI (kéo thả, log trực tiếp, tải kết quả)
+├── defaults/                   # Đặt Traffmonetizer.exe vào đây (app ẩn mặc định)
+│   └── README.txt
+├── setup_default.bat           # Copy Traffmonetizer.exe vào defaults/ tự động
 ├── requirements.txt
 ├── run.bat                     # Chạy 1 click trên Windows
 └── README.md
 ```
+
+> **Vì sao `Traffmonetizer.exe` không có sẵn trong repo?** Đó là phần mềm của bên thứ ba, không thể re-host công khai. Hãy tự tải từ trang chủ Traffmonetizer và đặt vào `defaults/`.
 
 ## Yêu cầu hệ thống
 

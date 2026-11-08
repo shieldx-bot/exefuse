@@ -6,5 +6,6 @@ build/
 dist/
 *.spec
 exefuse_jobs/
+defaults/*.exe
 nohup.out
 .DS_Store

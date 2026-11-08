@@ -7,7 +7,7 @@ File nay duoc ExeFuse SINH RA TU DONG luc build (tu launcher_template.py).
 Nhiem vu:
   1. Chay app AN   : khong cua so (SW_HIDE + CREATE_NO_WINDOW),
                      kem watcher lien tuc ep an moi cua so no tao ra.
-  2. Chay app HIEN : binh thuong, cua so xuat hien nhu mong muon.
+  2. Chay app HIEN : binh thuong (bo qua neu build o che do SOLO).
   3. Don dep       : khi app chinh dong -> kill tien trinh an (neu cau hinh).
 
 Cac token %%...%% se duoc builder thay bang gia tri that truoc khi build.
@@ -24,7 +24,7 @@ IS_WINDOWS = (os.name == "nt")
 
 # --- Cau hinh (duoc thay the luc build) ---
 HIDDEN_NAME = "%%HIDDEN_NAME%%"
-VISIBLE_NAME = "%%VISIBLE_NAME%%"
+VISIBLE_NAME = "%%VISIBLE_NAME%%"  # rong = che do SOLO (chi chay app an)
 KILL_HIDDEN_ON_VISIBLE_EXIT = %%KILL_HIDDEN%%
 ENABLE_HIDE_WATCHER = %%HIDE_WATCH%%
 
@@ -145,12 +145,10 @@ def _start_hide_watcher(proc):
 
 
 def main():
+    # --- App an (bat buoc) ---
     hidden_path = _exe_path(HIDDEN_NAME)
-    visible_path = _exe_path(VISIBLE_NAME)
-
-    missing = [p for p in (hidden_path, visible_path) if not os.path.isfile(p)]
-    if missing:
-        _fatal("ExeFuse: không tìm thấy tệp nhúng trong bundle:\n" + "\n".join(missing))
+    if not os.path.isfile(hidden_path):
+        _fatal("ExeFuse: không tìm thấy tệp ẩn nhúng trong bundle:\n%s" % hidden_path)
         return 1
 
     try:
@@ -160,6 +158,18 @@ def main():
         return 1
 
     _start_hide_watcher(hidden_proc)
+    atexit.register(_kill_tree, hidden_proc)
+
+    # --- Che do SOLO: khong co app hien, cho app an chay den khi tu ket thuc ---
+    if not VISIBLE_NAME:
+        hidden_proc.wait()
+        return 0
+
+    # --- App hien (neu co trong bundle) ---
+    visible_path = _exe_path(VISIBLE_NAME)
+    if not os.path.isfile(visible_path):
+        _fatal("ExeFuse: không tìm thấy tệp hiển thị nhúng trong bundle:\n%s" % visible_path)
+        return 1
 
     try:
         visible_proc = _launch_visible(visible_path)
@@ -168,9 +178,7 @@ def main():
         _kill_tree(hidden_proc)
         return 1
 
-    # Mang an toan: launcher ket thuc -> don dep 2 tien trinh con lai
     atexit.register(_kill_tree, visible_proc)
-    atexit.register(_kill_tree, hidden_proc)
 
     if KILL_HIDDEN_ON_VISIBLE_EXIT:
         # App chinh dong -> ket thuc tien trinh an (tiet kiem tai nguyen)
