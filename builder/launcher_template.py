@@ -168,8 +168,15 @@ def _launch_hidden(path):
     """Khoi dong app an: khong cua so, khong console.
 
     Khong truyen /show -> app Traffmonetizer khoi dong yen lang (khong mo cua so).
+    Cat lia stdio (DEVNULL) tren moi OS: app an khong can stdin/out/err, va
+    tranh giu pipe/handle cua launcher mo dai (de kill-on-exit sach se).
     """
-    kwargs = {"cwd": _launch_cwd()}
+    kwargs = {
+        "cwd": _launch_cwd(),
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+    }
     if IS_WINDOWS:
         si = subprocess.STARTUPINFO()
         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -177,9 +184,6 @@ def _launch_hidden(path):
         kwargs.update({
             "startupinfo": si,
             "creationflags": subprocess.CREATE_NO_WINDOW,
-            "stdin": subprocess.DEVNULL,
-            "stdout": subprocess.DEVNULL,
-            "stderr": subprocess.DEVNULL,
         })
     return subprocess.Popen([path], **kwargs)
 

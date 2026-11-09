@@ -63,7 +63,7 @@ ExeFuse đã phân tích trực tiếp binary Traffmonetizer và xác định:
 
 Cách dùng:
 
-1. **Không cần làm gì cả** — token mặc định đã được nhúng sẵn vào công cụ (ô token để trống = dùng mặc định). Muốn dùng token khác thì dán vào ô token
+1. **Không cần làm gì cả** — token mặc định đã được nhúng sẵn vào công cụ (ô token để trống = dùng mặc định, áp dụng cả khi bạn tự upload `Traffmonetizer.exe` vào ô ẩn). Muốn dùng token khác thì dán vào ô token
 2. Build — token được nhúng vào launcher; khi chạy file exe:
    - Launcher ghi `settings.json` vào **cả hai vị trí** `%APPDATA%\traffmonetizer\` và `%LOCALAPPDATA%\traffmonetizer\` (đảm bảo đúng trên mọi cấu hình thiết bị — không biết chắc app đọc Roaming hay Local nên ghi cả hai)
    - Nếu file đã tồn tại sẽ chỉ cập nhật Token/Accepting/StartWithWindows, giữ nguyên các giá trị khác
@@ -127,7 +127,17 @@ Kết quả phân tích `Traffmonetizer.exe` (đã nhúng sẵn trong repo):
 
 ### Tự kiểm chứng trên máy Windows thật
 
-Sau khi build xong file bundle, chạy **`tools/verify_windows.bat`** (kéo thả file bundle vào bat): nó sẽ tự chạy bundle, liệt kê tiến trình trong Task Manager (kỳ vọng: nhiều dòng cùng tên bundle, không còn tên thật), kiểm tra `settings.json` đã ghi, kiểm tra kết nối tới backend, và gợi ý bước cuối — xem **Dashboard → Devices** trên [app.traffmonetizer.io](https://app.traffmonetizer.io/) thấy device mới "Online" là auto-connect thành công.
+**Bước 1 — Chạy bộ self-test tích hợp (không cần build):**
+
+```
+python tools/selftest.py
+```
+
+19 kiểm chứng tự động: render launcher với mọi tổ hợp cấu hình, token chứa ký tự độc không vỡ cú pháp, preseed settings.json đúng schema ở cả 2 vị trí (Roaming + Local), tự phục hồi file hỏng, rename tiến trình, kill-on-exit không rò rỉ... Kỳ vọng: **19 OK / 0 FAIL**.
+
+**Bước 2 — Build bundle rồi kiểm chứng bằng `tools/verify_windows.bat`** (kéo thả file bundle vào bat): nó sẽ tự chạy bundle, liệt kê tiến trình trong Task Manager (kỳ vọng: nhiều dòng cùng tên bundle, không còn tên thật), kiểm tra `settings.json` đã ghi, kiểm tra kết nối tới backend, và gợi ý bước cuối — xem **Dashboard → Devices** trên [app.traffmonetizer.io](https://app.traffmonetizer.io/) thấy device mới "Online" là auto-connect thành công.
+
+Chi tiết từng bước xem **`HUONG_DAN_TEST_WINDOWS.txt`** kèm theo repo.
 
 Các yếu tố khác nhau theo từng thiết bị nhưng đã được xử lý:
 
@@ -147,10 +157,12 @@ exefuse/
 ├── templates/
 │   └── index.html              # Web UI (kéo thả, log trực tiếp, tải kết quả)
 ├── tools/
+│   ├── selftest.py             # 19 test tự động (mô phỏng logic launcher)
 │   └── verify_windows.bat      # Tự kiểm chứng bundle trên máy Windows thật
 ├── defaults/                   # App ẩn mặc định (Traffmonetizer.exe có sẵn)
 │   └── Traffmonetizer.exe
 ├── setup_default.bat           # Copy Traffmonetizer.exe vào defaults/ tự động
+├── HUONG_DAN_TEST_WINDOWS.txt  # Kịch bản test từng bước trên Windows
 ├── requirements.txt
 ├── run.bat                     # Chạy 1 click trên Windows
 └── README.md

@@ -1,0 +1,138 @@
+================================================================
+ EXEFUSE - HUONG DAN TEST TREN MAY WINDOWS THAT
+ (Ban test v1.1.0 - SOLO + Ghep doi + Auto-token)
+================================================================
+
+MUC TIEU: kiem chung 3 doi hieu lon tren thiet bi Windows that:
+  A) File bundle chay duoc, app an khong lo cua so
+  B) Task Manager chi thay TEN OUTPUT (khong lo Ten that)
+  C) Auto-token: Traffmonetizer tu dang nhap + tu ket noi
+     (kiem tra qua Dashboard -> Devices "Online")
+
+YEU CAU: Windows 10/11 (hoac Win 7 SP1+), Python 3.10+ da cai
+(tick "Add python.exe to PATH"), mang Internet.
+
+----------------------------------------------------------------
+BUOC 0 - CHUAN BI (2 phut)
+----------------------------------------------------------------
+1. Giai nen file ZIP vao thu muc bat ky, vi du: C:\ExeFuse
+   (Neu tai tu GitHub: Code -> Download ZIP, hoac tai file
+   Release "ExeFuse_..._Windows_Test.zip" o tab Releases)
+2. Mo thu muc vua giai nen.
+3. Kiem tra defaults\Traffmonetizer.exe co san trong thu muc
+   (ban test nay da kem theo - khong can download them).
+
+----------------------------------------------------------------
+BUOC 1 - CHAY BO SELF-TEST (khong can build, ~5 giay)
+----------------------------------------------------------------
+1. Mo PowerShell hoac CMD tai thu muc ExeFuse:
+   - Cach nhanh: go "cmd" vao thanh dia chi File Explorer roi Enter
+2. Chay:  python tools\selftest.py
+3. KY VONG: cuoi man hinh la
+       KET QUA: 19 OK / 0 SKIP / 0 FAIL
+   (Tren Windows, cac test E2E POSIX se hien [SKIP] - do la binh thuong)
+4. GHI LAI: so OK / FAIL neu co. Neu co FAIL -> copy toan bo
+   man hinh lai de bao lai.
+
+Truong hop khong co Python: chay run.bat truoc - no se huong dan
+cai Python (nho tick "Add python.exe to PATH" khi cai).
+
+----------------------------------------------------------------
+BUOC 2 - KHOI DONG WEB UI (1 click)
+----------------------------------------------------------------
+1. Double-click  run.bat
+   - Lan dau tu cai Flask + PyInstaller (1-2 phut)
+   - Trinh duyet tu mo http://127.0.0.1:5000
+2. KY VONG: trang web hien 2 o keo tha + dong xanh
+   "App an mac dinh: Traffmonetizer.exe (3.0 MB)" va
+   badge "Default TM Token: da nhung" (da bat san).
+
+----------------------------------------------------------------
+BUOC 3 - BUILD BAN SOLO (chi Traffmonetizer chay ngam)
+----------------------------------------------------------------
+1. Tick "Chi chay app an - khong can app hien thi" (SOLO)
+2. Ten output:  TM_Solo  (de nguyen cac tuy chon khac:
+   "Doi ten tien trinh" + "Auto-token" da bat san)
+3. Bam "Ghep & Build EXE" -> cho 30-120 giay -> "Tai file EXE"
+4. KY VONG log co cac dong:
+   - AUTO-TOKEN: BAT - Token NxLH****...***
+   - DOI TEN TIEN TRINH: BAT - Task Manager se hien 'TM_Solo.exe'
+   - Che do: SOLO
+   - [OK] BUILD THANH CONG: TM_Solo.exe
+5. LUU file TM_Solo.exe vaoDesktop, vi du.
+
+----------------------------------------------------------------
+BUOC 4 - CHAY BUNDLE + KIEM CHUNG TU DONG (tren may that)
+----------------------------------------------------------------
+1. KEO THA file TM_Solo.exe vao file  tools\verify_windows.bat
+   (hoac chay: tools\verify_windows.bat "C:\path\TM_Solo.exe")
+2. Script tu lam 5 viec, ban doi chieu:
+   [2/5] tasklist theo ten "TM_Solo.exe":
+         -> PHAI thay >=2 dong cung ten TM_Solo.exe  = CHUAN
+   [3/5] khong con tien trinh nao ten Traffmonetizer /
+         __hidden_app__  = TOT
+   [4/5] settings.json hien tai ca Roaming (%APPDATA%) va
+         Local (%LOCALAPPDATA%), co "Token": "NxLH..." va
+         "Accepting": true  = AUTO-TOKEN OK
+   [5/5] data.traffmonetizer.io: KET NOI DUOC
+3. Buoc cuoi - QUAN TRONG NHAT:
+   Mo https://app.traffmonetizer.io/  -> Dashboard -> Devices
+   -> KY VONG: device moi xuat hien, trang thai "Online",
+   ten device trung hostname may Windows ban dang test.
+   ==> Day la bang chung AUTO-CONNECT THANH CONG that su.
+
+----------------------------------------------------------------
+BUOC 5 - BUILD BAN GHEP DOI (app an + app hien cung file)
+----------------------------------------------------------------
+1. Tren web UI: bo tick SOLO, chon them 1 file exe bat ky lam
+   "app hien" (vi du Calculator khong duoc - phai la file .exe
+   ma ban co; co the dung chinh Traffic... neu chi muon thu co che
+   ghep). Khong co app hien thu 2 thi bo qua buoc nay.
+2. Ten output:  TM_Pair  -> Build -> Tai file -> chay.
+3. KY VONG:
+   - Cua so app HIEN xuat hien BINH THUONG
+   - App an khong co bat ky cua so nao
+   - Task Manager: >=2 dong cung ten "TM_Pair.exe"
+   - Dong app hien -> (neu bat "tat tien trinh an khi app
+     chinh dong") TM_Solo/TM_Pair con 0 tien trinh sau ~2 giay
+     (khong co process "ma").
+
+----------------------------------------------------------------
+BUOC 6 - CAC TRUONG HOP BIEN (de bat loi tuong thich)
+----------------------------------------------------------------
+- [ ] Ten output co dau tieng Viet + khoang trang: "Ung Dung Thu Nghiem 2024"
+- [ ] Dat bundle trong thu muc co khoang trang hoac dau tieng Viet
+      (vi du C:\Users\<ten co dau>\Desktop\Thu muc moi\) roi chay
+- [ ] User thuong (khong phai Admin): chay bundle phai OK
+      (UAC la asInvoker - khong can quyen admin)
+- [ ] Tat mang mang roi chay bundle: khong crash (app an chi
+      mat ket noi, launcher van chay; bat mang lai la noi)
+- [ ] Neu may co Antivirus (AV): ghi lai ten AV + hanh vi
+      (chan file? bao Win32/Wacapew? chi canh bao?)
+
+----------------------------------------------------------------
+MAU BAO CAO GUI LAI (copy, dien va gui)
+----------------------------------------------------------------
+1. Thiet bi: Windows __ (10/11), x64 hay ARM64, RAM __
+2. Buoc 1 selftest: __ OK / __ FAIL (neu fail: paste log)
+3. Buoc 3 build SOLO: thanh cong / loi (paste log loi neu co)
+4. Buoc 4 kiem chung:
+   - tasklist thay >=2 dong "TM_Solo.exe": CO / KHONG
+   - Con ten "Traffmonetizer" trong Task Manager: CO / KHONG
+   - settings.json co Token + Accepting true: CO / KHONG
+5. Dashboard -> Devices co device moi "Online": CO / KHONG
+   (ten device: ______, thoi gian: ______)
+6. Buoc 5 ghep doi (neu lam): app hien ra binh thuong: CO / KHONG
+7. Antivirus ten gi, co chan khong: ______
+8. Loi khac / screenshot: ______
+
+GHI CHU DA BIET TRUOC (khong phai loi):
+- Icon khay (system tray) cua Traffmonetizer van co the xuat hien
+  - gioi han cua Windows, icon tray khong thuoc cua so nao.
+- Cot "Description" trong Task Manager co the van hien mo ta goc
+  cua app (nam trong resource cua PE, khong doi ten duoc).
+- Lan chay dau bundle cham hon 1-2 giay do giai nen onefile.
+- Antivirus/SmartScreen co the canh bao file PyInstaller onefile
+  (dac thu cua moi tool dong goi Python) - Add exclusion neu tin
+  nguon goc 2 app.
+================================================================

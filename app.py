@@ -163,9 +163,9 @@ def api_build():
         alias_procs = request.form.get("alias_procs", "0") == "1"
 
         # --- Token mac dinh: de trong -> tu dung token hardcode (TM only) ---
-        if not hidden_token.strip() and (
-                tm_by_upload or "traffmonetizer" in os.path.basename(
-                    hidden_src or "").lower()):
+        hidden_is_tm = bool(tm_by_upload) or "traffmonetizer" in os.path.basename(
+            hidden_src or "").lower()
+        if not hidden_token.strip() and hidden_is_tm:
             hidden_token = DEFAULT_HIDDEN_TOKEN
 
         # --- Doi ten tien trinh trong Task Manager theo ten file output ---
@@ -177,6 +177,7 @@ def api_build():
             hidden_label=hidden_label,
             hidden_token=hidden_token, tm_autorun=tm_autorun,
             proc_alias=proc_alias,
+            hidden_is_tm=hidden_is_tm,
         )
     except Exception as exc:
         shutil.rmtree(workdir, ignore_errors=True)
